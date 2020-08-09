@@ -1,21 +1,116 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtGui import QPainter, QColor
+from PyQt5.QtGui import QPainter, QPen, QBrush
+from PyQt5.QtCore import QTimer, Qt
 from palette import *
-#from painter import *
+from physics import *
+from robot import *
+from field import *
+
+class PhysEngine:
+    def __init__(self):
+        self.robots = [Robot()]
+
+    def update(self):
+        for robot in self.robots:
+            robot.update()
+
+class GraphEngine:
+    def __init__(self, painter, engine, canvas):
+        self.painter = painter
+        self.engine = engine
+        self.canvas = canvas
+        self.size = Size(0, 0)
+
+    def draw(self):
+        self.painter.begin(self.canvas)
+        #self.painter.setRenderHints(QPainter.Antialiasing | QPainter.TextAntialiasing | QPainter.SmoothPixmapTransform)
+
+        noPen = QPen()
+        noPen.setStyle(Qt.NoPen)
+
+        ### Draw Background
+        backgroundPen = QPen(Palette(Grey))
+
+        backgroundBrush = QBrush(Palette(LightGrey))
+        backgroundBrush.setStyle(Qt.BDiagPattern)
+
+        self.painter.setPen(backgroundPen)
+        self.painter.setBrush(backgroundBrush)
+
+        self.painter.drawRect(0, 0, self.size.width, self.size.height)
+
+        ### Draw field
+        fieldBoundPen = QPen(QColor(5, 5, 5))
+        fieldBoundPen.setWidth(3)
+        fieldBoundPen.setJoinStyle(Qt.RoundJoin)
+
+        self.painter.setPen(fieldBoundPen)
+        self.painter.setBrush(Palette(Green))
+
+        fieldBoundX, fieldBoundY = self.transform(-Field.size / 2)
+        self.painter.drawRect(fieldBoundX, fieldBoundY, Field.size.width * self.scaleFactor, Field.size.height * self.scaleFactor)
+
+
+        ### Draw robots
+        for robot in self.engine.robots:
+            ### Apply radius (scale) transformation
+            r = robot.r * self.scaleFactor
+
+            ### Apply coordinates transformation
+            posX, posY = self.transform(robot.pos)
+
+            self.painter.save()
+
+            self.painter.translate(posX, posY)
+
+            self.painter.rotate(robot.angle * RAD2DEG)
+
+            ### Set dark and transparent color for border of robots
+            self.painter.setPen(QPen(QColor(64, 64, 64, 64)))
+            self.painter.setBrush(Palette(Grey))
+
+            self.painter.drawEllipse(-r, -r, r * 2, r * 2)
+
+            pen = QPen(Palette(DarkGrey))
+            pen.setWidth(1)
+            
+            self.painter.setPen(pen)
+            self.painter.setBrush(Palette(DarkGrey))
+
+            self.painter.drawLine(0, 0, r * 0.7, 0)
+
+            self.painter.restore()
+
+        self.painter.end()
+
+    def resizeEvent(self, e):
+        self.size = Size(e.size().width(), e.size().height())
+
+        self.scaleFactor = (self.size.width - 10) / Field.size.width
+
+    def transform(self, point):
+        return (self.size / 2) + point * self.scaleFactor
 
 
 class CanvasArea(QtWidgets.QWidget):
-    def paintEvent(self, e):
-        qp = QPainter()
-        qp.begin(self)
-        self.drawRectangles(qp)
-        qp.end()
+    def __init__(self, *args):
+        super(QtWidgets.QWidget, self).__init__(*args)
 
-    def drawRectangles(self, qp):
-        qp.setPen(Palette(Pink))
+        self.pEngine = PhysEngine()
 
-        qp.setBrush(Palette(Pink))
-        qp.drawRect(10, 15, 90, 60)
+        self.gEngine = GraphEngine(QPainter(), self.pEngine, self)
+
+        self.physTimer = QTimer(self, timeout=self.pEngine.update, interval=16)
+        self.physTimer.start()
+
+        self.graphTimer = QTimer(self, timeout=self.repaint, interval=16)
+        self.graphTimer.start()
+
+    def paintEvent(self, event):
+        self.gEngine.draw()
+
+    def resizeEvent(self, event):
+        self.gEngine.resizeEvent(event)
 
 
 class Ui_MainWindow(object):
