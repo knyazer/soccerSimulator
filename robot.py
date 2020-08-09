@@ -13,7 +13,7 @@ class Robot:
 
         self.wheels = [Wheel(45 * DEG2RAD), Wheel(135 * DEG2RAD), Wheel(225 * DEG2RAD), Wheel(310 * DEG2RAD)]
         self.wheels[0].vel = 0.1
-        #self.wheels[2].vel = -0.1
+        self.wheels[2].vel = -0.1
 
         self.maxAbsVel = 3
 
@@ -21,7 +21,7 @@ class Robot:
         omega = 0
 
         for wheel in self.wheels:
-            omega += wheel.vel * self.wheelsR
+            omega += (wheel.vel / self.wheelsR) * dt
 
         return omega
 
