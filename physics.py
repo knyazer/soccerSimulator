@@ -12,7 +12,7 @@ def sign(x):
     return 0
 
 def vec2point(vec):
-    return Point(cos(vec.dir) * vec.size, sin(vec.dir) * vec.size)
+    return Point(cos(vec.dir), sin(vec.dir)) * vec.size
 
 def point2vec(point):
     return Vec(point.size(), atan2(point.y, point.x))

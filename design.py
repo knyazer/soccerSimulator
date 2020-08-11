@@ -5,14 +5,47 @@ from palette import *
 from physics import *
 from robot import *
 from field import *
+from time import time
 
 class PhysEngine:
-    def __init__(self):
+    def __init__(self, simulationTime=0.001):
         self.robots = [Robot()]
+        self.iterationsPerSecond = 1000 # Default value, will be autobalanced
+        self.targetSimulationTime = simulationTime
 
     def update(self):
-        for robot in self.robots:
-            robot.update()
+        ts = time()
+
+        ### Calculate current time delta per iteration
+        dt = 1 / self.iterationsPerSecond
+        its = round(self.iterationsPerSecond * self.targetSimulationTime)
+
+        for i in range(its):
+            for robot in self.robots:
+                ### Apply orientation changes
+                robot.angle += robot.calcOmega() * dt
+
+                ### Calculate velocity
+                robot.vel = robot.calcVel()
+                robot.vel.dir += robot.angle
+
+                ### Apply velocity
+                robot.pos += robot.vel * dt
+
+                ### Apply acceleration
+                for wheel in robot.wheels:
+                    wheel.update(dt)
+
+        ### Specific constats
+        if time() - ts > self.targetSimulationTime:
+            self.iterationsPerSecond /= 1.04
+        else:
+            self.iterationsPerSecond *= 1.04
+
+        if self.iterationsPerSecond <= (1 / self.targetSimulationTime):
+            self.iterationsPerSecond = (1 / self.targetSimulationTime)
+
+        print(self.iterationsPerSecond)
 
 class GraphEngine:
     def __init__(self, painter, engine, canvas):
@@ -23,7 +56,7 @@ class GraphEngine:
 
     def draw(self):
         self.painter.begin(self.canvas)
-        #self.painter.setRenderHints(QPainter.Antialiasing | QPainter.TextAntialiasing | QPainter.SmoothPixmapTransform)
+        self.painter.setRenderHints(QPainter.Antialiasing | QPainter.TextAntialiasing | QPainter.SmoothPixmapTransform)
 
         noPen = QPen()
         noPen.setStyle(Qt.NoPen)
@@ -73,7 +106,7 @@ class GraphEngine:
 
             pen = QPen(Palette(DarkGrey))
             pen.setWidth(1)
-            
+
             self.painter.setPen(pen)
             self.painter.setBrush(Palette(DarkGrey))
 
@@ -96,15 +129,18 @@ class CanvasArea(QtWidgets.QWidget):
     def __init__(self, *args):
         super(QtWidgets.QWidget, self).__init__(*args)
 
-        self.pEngine = PhysEngine()
+        TIME_PER_FRAME_MS = 16
+
+        self.pEngine = PhysEngine((TIME_PER_FRAME_MS / 1000) / 2)
 
         self.gEngine = GraphEngine(QPainter(), self.pEngine, self)
 
-        self.physTimer = QTimer(self, timeout=self.pEngine.update, interval=16)
-        self.physTimer.start()
+        self.mainTimer = QTimer(self, timeout=self.systemUpdate, interval=TIME_PER_FRAME_MS)
+        self.mainTimer.start()
 
-        self.graphTimer = QTimer(self, timeout=self.repaint, interval=16)
-        self.graphTimer.start()
+    def systemUpdate(self, *args):
+        self.pEngine.update()
+        self.update()
 
     def paintEvent(self, event):
         self.gEngine.draw()
