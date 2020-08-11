@@ -8,16 +8,23 @@ from field import *
 from time import time
 
 class PhysEngine:
-    def __init__(self, simulationTime=0.001):
+    def __init__(self, simulationTime=0.001, simulationSpeed=1):
         self.robots = [Robot()]
+        self.ball = Ball()
         self.iterationsPerSecond = 1000 # Default value, will be autobalanced
-        self.targetSimulationTime = simulationTime
+        self.targetSimulationTime = simulationTime / simulationSpeed
+        self.simulationSpeed = simulationSpeed
+
+    def updateSimulationParams(self, simulationTime, simulationSpeed):
+        self.targetSimulationTime = simulationTime / simulationSpeed
+        self.simulationSpeed = simulationSpeed
+
 
     def update(self):
         ts = time()
 
         ### Calculate current time delta per iteration
-        dt = 1 / self.iterationsPerSecond
+        dt = self.simulationSpeed / self.iterationsPerSecond
         its = round(self.iterationsPerSecond * self.targetSimulationTime)
 
         for i in range(its):
@@ -35,6 +42,8 @@ class PhysEngine:
                 ### Apply acceleration
                 for wheel in robot.wheels:
                     wheel.update(dt)
+
+            self.ball.update(dt)
 
         ### Specific constats
         if time() - ts > self.targetSimulationTime:
@@ -114,6 +123,14 @@ class GraphEngine:
 
             self.painter.restore()
 
+        ### Draw ball
+        self.painter.setPen(noPen)
+        self.painter.setBrush(Palette(Red))
+
+        r = self.engine.ball.r * self.scaleFactor
+        x, y = self.transform(self.engine.ball.pos)
+        self.painter.drawEllipse(x - r, y - r, r * 2, r * 2)
+
         self.painter.end()
 
     def resizeEvent(self, e):
@@ -130,8 +147,9 @@ class CanvasArea(QtWidgets.QWidget):
         super(QtWidgets.QWidget, self).__init__(*args)
 
         TIME_PER_FRAME_MS = 16
+        QUALITY_PERFORMANCE = 10
 
-        self.pEngine = PhysEngine((TIME_PER_FRAME_MS / 1000) / 2)
+        self.pEngine = PhysEngine(TIME_PER_FRAME_MS / (1000 * 2), QUALITY_PERFORMANCE)
 
         self.gEngine = GraphEngine(QPainter(), self.pEngine, self)
 

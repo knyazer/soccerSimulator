@@ -1,7 +1,23 @@
 from physics import *
 
 MAX_VEL = 3
-FRICTION = 0.01
+FRICTION = 0.05
+
+class Ball:
+    def __init__(self):
+        self.pos = Point(0, 0)
+        self.vel = Vec(0, 0)
+
+        self.r = 0.035
+        self.bounceFactor = 0.4
+        self.friction = 0.03
+
+    def update(self, dt):
+        self.pos += vec2point(self.vel) * dt
+        self.vel.size -= self.friction
+
+        if self.vel.size < 0:
+            self.vel.size = 0
 
 class Robot:
     def __init__(self):

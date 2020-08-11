@@ -7,6 +7,7 @@ Grey = 2
 Green = 3
 LightGrey = 4
 DarkGrey = 5
+Red = 6
 
 class SingletonPalette:
     def __init__(self):
@@ -31,7 +32,7 @@ class SingletonPalette:
             print("%s while processing palette file\nFalling back to default palette" % e)
 
             self.clear()
-            for val in ['#f0f0f0', '#ffd4d4', '#a0a0a0', '#23ac50', '#bbb', '#555']:
+            for val in ['#f0f0f0', '#ffd4d4', '#a0a0a0', '#23ac50', '#bbb', '#555', '#b43']:
                 self.add(val)
 
     def __call__(self, color):
