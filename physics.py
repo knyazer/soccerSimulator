@@ -171,17 +171,26 @@ class Size(Point):
     def height(self):
         return self.y
 
-class Collide:
-    def __init__(self, penetration=0, dir=0):
+class Collision:
+    def __init__(self, penetration=None, dir=None):
         self.penetration = penetration
         self.dir = dir
+
+    def __enter__(self):
+        assert self.penetration == None or self.dir == None, "Objects are not colliding"
+
+        return self
+
+    def __exit__(self, type, value, traceback):
+        ### Nothing to do here
+        pass
 
 class AABB:
     def __init__(self, min=Point(), max=Point()):
         self.min = min
         self.max = max
 
-    def collide(self, other):
+    def isColliding(self, other):
         if self.max.x < other.min.x or self.min.x > other.max.x or self.max.y < other.min.y or self.min.y > other.max.y:
             return False
 
@@ -239,7 +248,7 @@ class Circle(Object):
 
     def isColliding(self, other, checkAABB=True):
         ### Check bounding boxes colliding
-        if checkAABB and not self.AABB.collide(other.AABB):
+        if checkAABB and not self.AABB.isColliding(other.AABB):
             return False
 
         if isinstance(other, Rectangle):
@@ -255,14 +264,19 @@ def Rectangle(Object):
 
     @property
     def vertices(self):
-        return [*(self.pos - self.size / 2).tuple(), *(self.pos + self.size / 2).tuple()]
+        p2 = self.pos - self.size / 2
+        p1 = p2 + Point(self.size.x, 0)
+        p3 = p2 + Point(0, self.size.y)
+        p4 = p2 + self.size
+
+        return [p1, p2, p3, p4]
 
     def consist(self, point):
         return self.AABB.consist(point)
 
     def isColliding(self, other, checkAABB=True):
         if isinstance(other, Rectangle):
-            return self.AABB.collide(other.AABB)
+            return self.AABB.isColliding(other.AABB)
 
         elif isinstance(other, Circle):
             return other.isColliding(self, checkAABB=False)
