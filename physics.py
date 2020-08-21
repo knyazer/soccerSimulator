@@ -171,6 +171,11 @@ class Size(Point):
     def height(self):
         return self.y
 
+class Collide:
+    def __init__(self, penetration=0, dir=0):
+        self.penetration = penetration
+        self.dir = dir
+
 class AABB:
     def __init__(self, min=Point(), max=Point()):
         self.min = min
@@ -178,6 +183,12 @@ class AABB:
 
     def collide(self, other):
         if self.max.x < other.min.x or self.min.x > other.max.x or self.max.y < other.min.y or self.min.y > other.max.y:
+            return False
+
+        return True
+
+    def consist(self, other):
+        if self.max.x < other.x or self.min.x > other.x or self.max.y < other.y or self.min.y > other.y:
             return False
 
         return True
@@ -221,13 +232,20 @@ class Circle(Object):
         self.AABB.update(self.pos - r, self.pos + r)
 
     def consist(self, point):
+        if not self.AABB.consist(point):
+            return False
+
         return (point - pos).fSize() < (self.r ** 2)
 
-    def collide(self, other):
+    def isColliding(self, other, checkAABB=True):
+        ### Check bounding boxes colliding
+        if checkAABB and not self.AABB.collide(other.AABB):
+            return False
+
         if isinstance(other, Rectangle):
-            pass#return any(self.consist(other.vertexes()))
+            return any([self.consist(x) for x in other.vertices])
         else:
-            pass
+            return (self.pos - other.pos).fSize() < (self.other.r + self.r) ** 2
 
 def Rectangle(Object):
     def __init__(self, size=Size(), *args, **kwargs):
@@ -235,22 +253,16 @@ def Rectangle(Object):
 
         self.AABB.update(self.pos - size / 2, self.pos + size / 2)
 
+    @property
+    def vertices(self):
+        return [*(self.pos - self.size / 2).tuple(), *(self.pos + self.size / 2).tuple()]
+
     def consist(self, point):
-        min = self.pos - self.size / 2
-        max = self.pos + self.size / 2
+        return self.AABB.consist(point)
 
-        if point.x < min.x or point.y < min.y or point.x > max.x or point.y > max.y:
-            return False
-
-        return True
-
-    def collide(self, other, checkAABB=True):
-        ### Check bounding boxes colliding
-        if checkAABB and not self.AABB.collide(other.AABB):
-            return False
-
+    def isColliding(self, other, checkAABB=True):
         if isinstance(other, Rectangle):
-            return True
+            return self.AABB.collide(other.AABB)
 
         elif isinstance(other, Circle):
-            return other.collide(self, checkAABB=False)
+            return other.isColliding(self, checkAABB=False)
