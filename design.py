@@ -15,10 +15,12 @@ class PhysEngine:
         self.targetSimulationTime = simulationTime / simulationSpeed
         self.simulationSpeed = simulationSpeed
 
+        self.dir = 0
+        self.vel = 0.2
+
     def updateSimulationParams(self, simulationTime, simulationSpeed):
         self.targetSimulationTime = simulationTime / simulationSpeed
         self.simulationSpeed = simulationSpeed
-
 
     def update(self):
         ts = time()
@@ -36,6 +38,23 @@ class PhysEngine:
                 robot.vel = robot.calcVel()
                 robot.vel.dir += robot.angle
 
+                ### Detect and process touches
+                complete, normal = Field.touch(robot)
+                if complete:
+                    for nrm in normal:
+                        if angleDelta(robot.vel.dir, nrm) < PI / 2:
+                            robot.vel = getProj(robot.vel, nrm + PI / 2)
+
+                complete, normal = robot.touch(self.ball)
+                if complete:
+                    for nrm in normal:
+                        ### Go to robot local coordinate system
+                        lVel = self.ball.vel - robot.vel
+                        if angleDelta(lVel.dir, nrm) > PI / 2:
+                            print(self.ball.vel.size, self.robots[0].vel.size, lVel.size)
+                            self.ball.vel = getMirrorProj(lVel, nrm + PI / 2) * self.ball.bounceFactor + getProj(robot.vel, nrm)
+                            print(self.ball.vel.size)
+
                 ### Apply velocity
                 robot.pos += robot.vel * dt
 
@@ -43,9 +62,19 @@ class PhysEngine:
                 for wheel in robot.wheels:
                     wheel.update(dt)
 
+            ### Process touches
+            complete, normal = Field.touch(self.ball)
+            if complete:
+                for nrm in normal:
+                    if angleDelta(self.ball.vel.dir, nrm) < PI / 2:
+                        self.ball.vel = getMirrorProj(self.ball.vel, nrm + PI / 2) * self.ball.bounceFactor
+
+            ### Apply physics
             self.ball.update(dt)
 
-        ### Specific constats
+        self.robots[0].move(self.vel, self.dir, 0)
+
+        ### CPU load balancing
         if time() - ts > self.targetSimulationTime:
             self.iterationsPerSecond /= 1.04
         else:
@@ -54,7 +83,10 @@ class PhysEngine:
         if self.iterationsPerSecond <= (1 / self.targetSimulationTime):
             self.iterationsPerSecond = (1 / self.targetSimulationTime)
 
-        print(self.iterationsPerSecond)
+    def setRobotTarget(self, point):
+        delta = self.robots[0].pos - point
+        self.dir = atan2(delta.x, delta.y)
+        self.vel = delta.size()
 
 class GraphEngine:
     def __init__(self, painter, engine, canvas):
@@ -141,6 +173,9 @@ class GraphEngine:
     def transform(self, point):
         return (self.size / 2) + point * self.scaleFactor
 
+    def reverseTransform(self, point):
+        return (point - self.size / 2) / self.scaleFactor
+
 
 class CanvasArea(QtWidgets.QWidget):
     def __init__(self, *args):
@@ -156,6 +191,8 @@ class CanvasArea(QtWidgets.QWidget):
         self.mainTimer = QTimer(self, timeout=self.systemUpdate, interval=TIME_PER_FRAME_MS)
         self.mainTimer.start()
 
+        self.setMouseTracking(True)
+
     def systemUpdate(self, *args):
         self.pEngine.update()
         self.update()
@@ -165,6 +202,11 @@ class CanvasArea(QtWidgets.QWidget):
 
     def resizeEvent(self, event):
         self.gEngine.resizeEvent(event)
+
+    def mousePressEvent(self, event):
+        print(event.x(), event.y())
+
+        self.pEngine.setRobotTarget(self.gEngine.reverseTransform(Point(event.x(), event.y())))
 
 
 class Ui_MainWindow(object):
