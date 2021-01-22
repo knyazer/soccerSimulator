@@ -1,2 +1,2 @@
-# soccerSimulator
-Simulator debugging strategies for Robocup Junior Soccer
+# Soccer simulator
+Debugger for RCJ soccer; pyqt5 required
